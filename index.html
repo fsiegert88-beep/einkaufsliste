@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="de">
+<title>Unsere Einkaufsliste</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Einkauf">
+<meta name="theme-color" content="#2c7a4b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one phone column; header, add field, "Nächster Einkauf" suggestion card, list grouped by store aisle */
+:root {
+  --bg: #f3f5ef;
+  --surface: #ffffff;
+  --fg: #19231d;
+  --muted: #5f6d64;
+  --line: #dde3da;
+  --accent: #2c7a4b;
+  --accent-ink: #ffffff;
+  --sugg: #fff4d6;
+  --sugg-line: #ecd48f;
+  --sugg-ink: #6b4e00;
+  --danger: #b2412e;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #1a211d; --fg: #e7ece8; --muted: #9aa89f; --line: #2b352f;
+    --accent: #5cc187; --accent-ink: #0d1a12; --sugg: #2a2514; --sugg-line: #5a4b1d; --sugg-ink: #f0d27a; --danger: #ef8a76;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #1a211d; --fg: #e7ece8; --muted: #9aa89f; --line: #2b352f;
+  --accent: #5cc187; --accent-ink: #0d1a12; --sugg: #2a2514; --sugg-line: #5a4b1d; --sugg-ink: #f0d27a; --danger: #ef8a76;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 48px;
+}
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.count { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sync { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: middle; }
+.sync.on { background: var(--accent); }
+
+form.add { display: flex; gap: 8px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 6px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+form.add input {
+  flex: 1; min-width: 0; font: inherit; padding: 13px 14px; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--fg);
+}
+form.add input:focus { outline: none; border-color: var(--accent); }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { border: 0; border-radius: 12px; padding: 12px 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.sugg { background: var(--sugg); border: 1.5px solid var(--sugg-line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.sugg h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 19px; color: var(--sugg-ink); }
+.sugg p.hint { margin: 0; font-size: 14px; color: var(--sugg-ink); opacity: .85; }
+.sugg ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sugg label { display: flex; align-items: center; gap: 12px; padding: 8px 4px; cursor: pointer; }
+.sugg input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.sugg .why { display: block; font-size: 13px; color: var(--muted); }
+.sugg .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ghost { background: transparent; border: 1.5px solid var(--sugg-line); color: var(--sugg-ink); border-radius: 12px; padding: 11px 14px; }
+
+.group h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.item { display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 12px; border-top: 1px solid var(--line); transition: opacity .25s, transform .25s; }
+.item:first-child { border-top: 0; }
+.item.leaving { opacity: 0; transform: translateX(24px); }
+.check {
+  width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2px solid var(--accent); background: transparent;
+  display: grid; place-items: center; color: transparent; padding: 0;
+}
+.check:hover, .item.leaving .check { background: var(--accent); color: var(--accent-ink); }
+.name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.new { font-size: 12px; color: var(--sugg-ink); background: var(--sugg); border: 1px solid var(--sugg-line); border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+.del { border: 0; background: transparent; color: var(--muted); width: 40px; height: 40px; border-radius: 10px; font-size: 22px; line-height: 1; flex: none; }
+.del:hover { color: var(--danger); }
+
+.empty { text-align: center; color: var(--muted); padding: 28px 12px; border: 1.5px dashed var(--line); border-radius: 14px; }
+.empty strong { display: block; color: var(--fg); font-family: var(--display); font-weight: 600; font-size: 18px; margin-bottom: 4px; }
+.notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; color: var(--muted); }
+footer { color: var(--muted); font-size: 13px; text-align: center; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--fg); color: var(--bg); border-radius: 12px; padding: 10px 10px 10px 16px; display: flex; gap: 12px; align-items: center;
+  max-width: calc(100% - 32px); z-index: 20; box-shadow: 0 6px 24px rgba(0,0,0,.25);
+}
+.toast button { background: transparent; border: 0; color: var(--bg); font-weight: 700; text-decoration: underline; padding: 6px 8px; }
+@media (prefers-reduced-motion: reduce) { .item { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Einkaufsliste</h1>
+    <span class="count"><span class="sync" id="sync"></span><span id="count">Verbinde…</span></span>
+  </header>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="addInput" list="known" placeholder="Was brauchen wir? z. B. Milch" aria-label="Artikel hinzufügen" enterkeyhint="done">
+    <datalist id="known"></datalist>
+    <button class="btn" id="addBtn" type="submit">Hinzufügen</button>
+  </form>
+
+  <section class="sugg" id="sugg" hidden>
+    <h2>Nächster Einkauf</h2>
+    <p class="hint">Das kauft ihr normalerweise um diese Zeit. Haken weg bei allem, was ihr nicht braucht.</p>
+    <ul id="suggList"></ul>
+    <div class="row">
+      <button class="btn" id="suggAdd" type="button">Auf die Liste</button>
+      <button class="ghost" id="suggSkip" type="button">Diesmal nicht</button>
+    </div>
+  </section>
+
+  <div id="listArea">
+    <div class="empty"><strong>Liste wird geladen</strong>Gleich erscheinen hier eure Artikel.</div>
+  </div>
+
+  <footer id="foot">Abhaken = gekauft · × = ohne Kauf entfernen. Die Liste lernt aus jedem Kauf.</footer>
+</div>
+<div class="toast" id="toast" hidden><span id="toastText"></span><button id="toastUndo" type="button">Rückgängig</button></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const DAY = 86400000;
+const CATS = [
+  ["Obst & Gemüse", /apfel|äpfel|banane|birne|orange|zitrone|limette|traube|beere|kiwi|mango|ananas|melone|tomate|gurke|paprika|salat|karotte|möhre|zwiebel|knoblauch|kartoffel|zucchini|brokkoli|blumenkohl|spinat|pilz|champignon|avocado|lauch|kräuter|petersilie|basilikum|ingwer|obst|gemüse|rucola|radieschen|kohl|sellerie|aubergine|kürbis/],
+  ["Brot & Backwaren", /brot|brötchen|semmel|toast|baguette|croissant|brezel|laugen|kuchen|knäcke|wrap|tortilla/],
+  ["Kühlregal", /milch|joghurt|jogurt|quark|käse|butter|sahne|schmand|frischkäse|mozzarella|feta|parmesan|eier|\bei\b|aufschnitt|wurst|schinken|salami|tofu|margarine|hafermilch|skyr|creme fraiche|crème/],
+  ["Fleisch & Fisch", /fleisch|hähnchen|huhn|hack|steak|schnitzel|lachs|fisch|thunfisch|garnelen|bratwurst|pute|rind|schwein|speck/],
+  ["Vorrat", /nudel|pasta|spaghetti|reis|mehl|zucker|salz|pfeffer|öl|essig|senf|ketchup|mayo|soße|sauce|dose|bohnen|linsen|kichererbsen|müsli|haferflocken|cornflakes|honig|marmelade|nutella|kaffee|tee|kakao|gewürz|brühe|passata|tomatenmark|backpulver|hefe|nüsse|mandeln/],
+  ["Süßes & Snacks", /schokolade|chips|kekse|gummibärchen|bonbon|eis\b|snack|riegel|cracker|popcorn|süß/],
+  ["Getränke", /wasser|saft|cola|limo|bier|wein|sekt|sprudel|schorle|getränk|mate|energy/],
+  ["Tiefkühl", /tiefkühl|tk[- ]|pizza|pommes|rahmspinat|fischstäbchen|gefroren/],
+  ["Drogerie & Haushalt", /klopapier|toilettenpapier|küchenrolle|spülmittel|waschmittel|seife|shampoo|duschgel|zahnpasta|zahnbürste|deo|müllbeutel|schwamm|taschentücher|windeln|creme|rasier|tabs|putzmittel|alufolie|frischhaltefolie|backpapier|batterie/],
+];
+const CAT_ORDER = CATS.map(c => c[0]).concat("Sonstiges");
+function category(name) {
+  const n = name.toLowerCase();
+  for (const [c, re] of CATS) if (re.test(n)) return c;
+  return "Sonstiges";
+}
+// "2x Milch", "500 g Hack", "3 Äpfel" -> stable learning key
+function keyOf(name) {
+  return name.toLowerCase()
+    .replace(/^\s*\d+([.,]\d+)?\s*(x|stk\.?|stück|g|gr|kg|l|ml|pck\.?|packung(en)?|flaschen?|dosen?|becher)?\s+/i, "")
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "x";
+}
+function cleanName(name) {
+  return name.replace(/^\s*\d+([.,]\d+)?\s*(x|stk\.?|stück|g|gr|kg|l|ml|pck\.?|packung(en)?|flaschen?|dosen?|becher)?\s+/i, "").trim();
+}
+function days(ms) { const d = Math.round(ms / DAY); return d <= 1 ? "1 Tag" : d + " Tagen"; }
+function everyDays(ms) { const d = Math.round(ms / DAY); return d <= 1 ? "täglich" : "etwa alle " + d + " Tage"; }
+
+const $ = id => document.getElementById(id);
+let db = null, items = [], stats = new Map(), statsReady = false, itemsReady = false;
+let suggChecked = new Map(); // key -> bool, survives re-renders
+let undoFn = null, toastTimer = null;
+
+function showToast(text, undo) {
+  $("toastText").textContent = text;
+  undoFn = undo || null;
+  $("toastUndo").hidden = !undo;
+  $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, 5000);
+}
+$("toastUndo").onclick = async () => { const f = undoFn; $("toast").hidden = true; undoFn = null; if (f) await f(); };
+
+function computeSuggestions() {
+  const now = Date.now();
+  const onList = new Set(items.map(i => i.key));
+  const out = [];
+  for (const [key, s] of stats) {
+    if (onList.has(key) || !s.last) continue;
+    if (s.snooze && s.snooze > now) continue;
+    const since = now - s.last;
+    let score = 0, why = "";
+    if (s.gap && s.count >= 2) {
+      const ratio = since / s.gap;
+      if (ratio >= 0.75) { score = ratio + s.count / 50; why = "kauft ihr " + everyDays(s.gap) + " · zuletzt vor " + days(since); }
+    } else if (s.count >= 3 && since > 4 * DAY) {
+      score = 0.5; why = (s.count) + "× gekauft · zuletzt vor " + days(since);
+    }
+    if (score > 0) out.push({ key, name: s.name, why, score });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, 12);
+}
+
+function render() {
+  if (!itemsReady) return;
+  $("count").textContent = items.length === 0 ? "alles erledigt" : items.length + (items.length === 1 ? " Artikel" : " Artikel");
+
+  // suggestions
+  const sugg = statsReady ? computeSuggestions() : [];
+  $("sugg").hidden = sugg.length === 0;
+  const ul = $("suggList");
+  ul.replaceChildren(...sugg.map(s => {
+    if (!suggChecked.has(s.key)) suggChecked.set(s.key, true);
+    const li = document.createElement("li");
+    const lab = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = "sg-" + s.key; cb.checked = suggChecked.get(s.key);
+    cb.onchange = () => { suggChecked.set(s.key, cb.checked); updateSuggBtn(sugg); };
+    const txt = document.createElement("span");
+    txt.textContent = s.name;
+    const why = document.createElement("span"); why.className = "why"; why.textContent = s.why;
+    txt.appendChild(why);
+    lab.append(cb, txt); li.appendChild(lab); return li;
+  }));
+  updateSuggBtn(sugg);
+  $("suggAdd").onclick = () => acceptSuggestions(sugg);
+  $("suggSkip").onclick = () => skipSuggestions(sugg);
+
+  // known names for autocomplete
+  $("known").replaceChildren(...[...stats.values()].sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 200).map(s => {
+    const o = document.createElement("option"); o.value = s.name; return o;
+  }));
+
+  // list
+  const area = $("listArea");
+  if (items.length === 0) {
+    area.innerHTML = "";
+    const e = document.createElement("div"); e.className = "empty";
+    e.innerHTML = "<strong>Die Liste ist leer</strong>Oben eintippen, was fehlt. Was ihr abhakt, merkt sich die Liste für den nächsten Einkauf.";
+    area.appendChild(e);
+    return;
+  }
+  const groups = new Map();
+  for (const it of items) { const c = it.cat || "Sonstiges"; if (!groups.has(c)) groups.set(c, []); groups.get(c).push(it); }
+  const frag = document.createDocumentFragment();
+  for (const c of CAT_ORDER) {
+    const g = groups.get(c); if (!g) continue;
+    const sec = document.createElement("section"); sec.className = "group";
+    const h = document.createElement("h3"); h.textContent = c;
+    const list = document.createElement("ul"); list.className = "list";
+    for (const it of g) {
+      const li = document.createElement("li"); li.className = "item";
+      const chk = document.createElement("button"); chk.className = "check"; chk.type = "button";
+      chk.setAttribute("aria-label", it.name + " gekauft"); chk.innerHTML = "&#10003;";
+      chk.onclick = () => { li.classList.add("leaving"); setTimeout(() => bought(it), 220); };
+      const nm = document.createElement("span"); nm.className = "name"; nm.textContent = it.name;
+      if (it.suggested) { const b = document.createElement("span"); b.className = "new"; b.textContent = "Vorschlag"; nm.appendChild(b); }
+      const del = document.createElement("button"); del.className = "del"; del.type = "button";
+      del.setAttribute("aria-label", it.name + " entfernen"); del.textContent = "×";
+      del.onclick = () => removeItem(it);
+      li.append(chk, nm, del); list.appendChild(li);
+    }
+    sec.append(h, list); frag.appendChild(sec);
+  }
+  area.replaceChildren(frag);
+}
+function updateSuggBtn(sugg) {
+  const n = sugg.filter(s => suggChecked.get(s.key)).length;
+  $("suggAdd").textContent = n ? n + " auf die Liste" : "Auf die Liste";
+  $("suggAdd").disabled = n === 0;
+}
+
+async function addItem(rawName, suggested) {
+  const name = rawName.trim().replace(/\s+/g, " ").slice(0, 120);
+  if (!name || !db) return;
+  const key = keyOf(name);
+  if (items.some(i => i.key === key && i.name.toLowerCase() === name.toLowerCase())) { showToast(name + " steht schon drauf"); return; }
+  const known = stats.get(key);
+  await col("items").add({ name, key, cat: known?.cat || category(name), added: Date.now(), suggested: !!suggested });
+}
+
+async function bought(it) {
+  const now = Date.now();
+  const prev = stats.get(it.key) || null;
+  const s = prev ? { ...prev } : { name: cleanName(it.name) || it.name, cat: it.cat, count: 0 };
+  s.name = cleanName(it.name) || it.name;
+  s.cat = it.cat;
+  if (s.last && now - s.last > DAY / 2) {
+    const delta = now - s.last;
+    s.gap = s.gap ? Math.round(0.6 * s.gap + 0.4 * delta) : delta;
+  }
+  if (!s.last || now - s.last > DAY / 2) s.count = (s.count || 0) + 1;
+  s.last = now;
+  delete s.snooze;
+  try {
+    await col("items").doc(it.id).delete();
+    await col("stats").doc(it.key).set(s);
+  } catch (e) { showToast("Konnte nicht speichern. Bitte nochmal versuchen."); return; }
+  const restore = { ...it }; delete restore.id;
+  showToast(it.name + " gekauft", async () => {
+    await col("items").doc(it.id).set(restore);
+    if (prev) await col("stats").doc(it.key).set(prev); else await col("stats").doc(it.key).delete();
+  });
+}
+
+async function removeItem(it) {
+  const restore = { ...it }; delete restore.id;
+  try { await col("items").doc(it.id).delete(); } catch (e) { showToast("Konnte nicht löschen."); return; }
+  showToast(it.name + " entfernt", () => col("items").doc(it.id).set(restore));
+}
+
+async function snooze(key) {
+  const s = stats.get(key); if (!s) return;
+  const wait = Math.max(2 * DAY, Math.round((s.gap || 7 * DAY) * 0.5));
+  await col("stats").doc(key).set({ ...s, snooze: Date.now() + wait });
+}
+
+async function acceptSuggestions(sugg) {
+  $("suggAdd").disabled = true;
+  for (const s of sugg) {
+    if (suggChecked.get(s.key)) await addItem(s.name, true);
+    else await snooze(s.key);
+    suggChecked.delete(s.key);
+  }
+}
+async function skipSuggestions(sugg) {
+  for (const s of sugg) { await snooze(s.key); suggChecked.delete(s.key); }
+  showToast("Vorschläge ausgeblendet");
+}
+
+$("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = $("addInput").value;
+  if (!v.trim()) return;
+  $("addInput").value = "";
+  // "Milch, Eier, Brot" adds three
+  for (const part of v.split(/[,;\n]/)) await addItem(part, false);
+  $("addInput").focus();
+});
+
+function offline(msg) {
+  $("count").textContent = "nicht verbunden";
+  $("listArea").innerHTML = "";
+  const n = document.createElement("div"); n.className = "notice"; n.textContent = msg;
+  $("listArea").appendChild(n);
+  $("addInput").disabled = true; $("addBtn").disabled = true;
+}
+
+// ==== Firebase-Einstellungen: hier die Werte aus der Firebase-Konsole eintragen ====
+const firebaseConfig = {
+  apiKey: "AIzaSyCaA1SLL9256S3JG7ljdzCZbHvujicCiko",
+  authDomain: "einkaufsliste-a5a37.firebaseapp.com",
+  projectId: "einkaufsliste-a5a37",
+  appId: "1:155738384792:web:3fb6a901728ebf77a2e3ed",
+};
+// Welche Liste geöffnet wird, steht im Link (?liste=CODE). Wer den Link kennt, kann mitschreiben.
+// Merkt sich den Code, damit das Homescreen-Symbol (startet ohne #) dieselbe Liste öffnet.
+let LIST_ID = (new URLSearchParams(location.search).get("liste") || "").replace(/[^A-Za-z0-9]/g, "");
+try {
+  if (LIST_ID.length >= 10) localStorage.setItem("listId", LIST_ID);
+  else { LIST_ID = localStorage.getItem("listId") || ""; if (LIST_ID) history.replaceState(null, "", "?liste=" + LIST_ID); }
+} catch (e) {}
+function col(name) { return db.collection("listen").doc(LIST_ID).collection(name); }
+
+(async () => {
+  if (LIST_ID.length < 10) { offline("Bitte öffne euren persönlichen Link (mit ?liste= und eurem Code)."); return; }
+  try {
+    firebase.initializeApp(firebaseConfig);
+    await firebase.auth().signInAnonymously();
+    db = firebase.firestore();
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  } catch (e) { offline("Verbindung fehlgeschlagen. Sind die Firebase-Einstellungen in index.html eingetragen?"); return; }
+  $("sync").classList.add("on");
+  col("items").orderBy("added").onSnapshot(snap => {
+    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    itemsReady = true; render();
+  }, () => offline("Die Verbindung zur Liste ist abgebrochen. Seite neu laden."));
+  col("stats").onSnapshot(snap => {
+    stats = new Map(snap.docs.map(d => [d.id, d.data()]));
+    statsReady = true; render();
+  }, () => {});
+})();
+</script>
